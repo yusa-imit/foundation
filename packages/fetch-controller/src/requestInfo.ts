@@ -1,3 +1,5 @@
+import { randomUUID } from './util/randomUUID';
+
 export const Methods = {
   GET: 'GET',
   POST: 'POST',
@@ -28,26 +30,29 @@ export interface RequestInfoConstructorInfo<T = unknown> {
   url: string;
   method: Methods;
   body?: T;
-  headers?: Headers;
+  headers?: RequestInfoHeaders;
   options?: RequestInfoOptions;
 }
 
+export type RequestInfoHeaders = Record<string, string>;
+
 export class RequestInfo<T = unknown> {
+  readonly id: string;
   readonly baseUrl: string;
   readonly url: string;
   readonly method: Methods;
   readonly body?: T;
-  readonly headers?: Headers;
+  readonly headers?: RequestInfoHeaders;
   readonly initiatePending: boolean;
   readonly abortController?: AbortController;
   private _isPended = false;
 
-  private _resolve: (value?: unknown) => void = () => {
+  private _resolve: (value: T | PromiseLike<T>) => void = () => {
     throw new Error(
       'Request was pended, but resolve function was not sended to request initiator.',
     );
   };
-  private _reject: (value?: unknown) => void = () => {
+  private _reject: (reason?: any) => void = () => {
     throw new Error(
       'Request was pended, but resolve function was not sended to request initiator.',
     );
@@ -63,6 +68,7 @@ export class RequestInfo<T = unknown> {
     this.abortController = info.options?.usingAbort
       ? new AbortController()
       : undefined;
+    this.id = randomUUID();
   }
 
   get isPended() {
@@ -78,8 +84,8 @@ export class RequestInfo<T = unknown> {
   }
 
   pending(
-    resolve: (value?: unknown) => void,
-    reject: (value?: unknown) => void,
+    resolve: (value: T | PromiseLike<T>) => void,
+    reject: (reason?: any) => void,
   ) {
     this._isPended = true;
     this._resolve = resolve;
