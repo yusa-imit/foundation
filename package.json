@@ -10,8 +10,10 @@
     "eslint": "^8.47.0",
     "prettier": "^3.0.2",
     "tsconfig": "workspace:*",
-    "turbo": "latest"
+    "turbo": "latest",
+    "@vercel/style-guide": "^4.0.2"
   },
   "packageManager": "pnpm@8.6.10",
-  "name": "foundation"
+  "name": "foundation",
+  "prettier": "@vercel/style-guide/prettier"
 }

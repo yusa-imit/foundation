@@ -9,6 +9,7 @@
     "lint": "echo 'Add lint script here'"
   },
   "devDependencies": {
+    "axios": "^1.4.0",
     "eslint-config-custom": "workspace:*",
     "tsconfig": "workspace:*"
   }
