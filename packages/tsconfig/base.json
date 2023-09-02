@@ -16,7 +16,8 @@
     "skipLibCheck": true,
     "strict": true,
     "strictNullChecks": true,
-    "lib": ["ESNext", "DOM"]
+    "lib": ["ESNext", "DOM"],
+    "target": "ES6"
   },
   "exclude": ["node_modules"]
 }

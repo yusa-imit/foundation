@@ -36,6 +36,9 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': 'warn',
     'no-console': 'warn',
     '@typescript-eslint/consistent-type-imports': 'off',
+    'eslint-comments/no-unlimited-disable': 'off',
+    'eslint-comments/disable-enable-pair': 'off',
+    '@typescript-eslint/no-floating-promises': 'warn',
   },
   ignorePatterns: ['node_modules/', 'dist/'],
 };
