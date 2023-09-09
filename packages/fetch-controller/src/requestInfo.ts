@@ -1,3 +1,4 @@
+import { AxiosRequestConfig } from 'axios';
 import { randomUUID } from './util/randomUUID';
 
 export const Methods = {
@@ -6,23 +7,31 @@ export const Methods = {
   PUT: 'PUT',
   DELETE: 'DELETE',
   PATCH: 'PATCH',
-};
+} as const;
 
 export type Methods = (typeof Methods)[keyof typeof Methods];
 
 export const ResponseProcessMethod = {
-  JSON: 'JSON',
-  TEXT: 'TEXT',
-  BLOB: 'BLOB',
-};
+  JSON: 'json',
+  TEXT: 'text',
+  BLOB: 'blob',
+  STREAM: 'stream',
+  ARRAYBUFFER: 'arraybuffer',
+  DOCUMENT: 'document',
+} as const;
 
 export type ResponseProcessMethod =
   (typeof ResponseProcessMethod)[keyof typeof ResponseProcessMethod];
 
+export type AcceptableAxiosConfig = Omit<
+  AxiosRequestConfig,
+  'url' | 'baseUrl' | 'method' | 'headers' | 'responseType'
+>;
+
 export interface RequestInfoOptions {
   pending?: boolean;
-  usingAbort?: boolean;
   result?: ResponseProcessMethod;
+  axiosOptions?: AcceptableAxiosConfig;
 }
 
 export interface RequestInfoConstructorInfo<T = unknown> {
@@ -44,8 +53,14 @@ export class RequestInfo<T = unknown> {
   readonly body?: T;
   readonly headers?: RequestInfoHeaders;
   readonly initiatePending: boolean;
-  readonly abortController?: AbortController;
+  readonly abortController: AbortController;
+  readonly resultProcessIn: ResponseProcessMethod;
+  readonly axiosOptions: AcceptableAxiosConfig | null;
+  readonly requestHash: string;
   private _isPended = false;
+  private _sended = false;
+  private _completed = false;
+  private _aborted = false;
 
   private _resolve: (value: T | PromiseLike<T>) => void = () => {
     throw new Error(
@@ -65,10 +80,11 @@ export class RequestInfo<T = unknown> {
     this.body = info.body;
     this.headers = info.headers;
     this.initiatePending = info.options?.pending || false;
-    this.abortController = info.options?.usingAbort
-      ? new AbortController()
-      : undefined;
+    this.abortController = new AbortController();
+    this.resultProcessIn = info.options?.result || ResponseProcessMethod.JSON;
+    this.axiosOptions = info.options?.axiosOptions || null;
     this.id = randomUUID();
+    this.requestHash = `${this.baseUrl}:${this.url}:${this.method}:${this.body}`;
   }
 
   get isPended() {
@@ -83,12 +99,34 @@ export class RequestInfo<T = unknown> {
     return this._reject;
   }
 
+  get sended() {
+    return this._sended;
+  }
+
+  get completetd() {
+    return this._completed;
+  }
+
   pending(
-    resolve: (value: T | PromiseLike<T>) => void,
+    resolve: (value: any | PromiseLike<any>) => void,
     reject: (reason?: any) => void,
   ) {
     this._isPended = true;
     this._resolve = resolve;
     this._reject = reject;
+  }
+
+  send() {
+    this._sended = true;
+  }
+
+  abort() {
+    this.abortController.abort();
+    this._aborted = true;
+    this.complete();
+  }
+
+  complete() {
+    this._completed;
   }
 }
