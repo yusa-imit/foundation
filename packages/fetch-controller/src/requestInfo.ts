@@ -116,7 +116,12 @@ export class RequestInfo<T = unknown> {
     this._reject = reject;
   }
 
-  send() {
+  send(
+    resolve: (value: any | PromiseLike<any>) => void,
+    reject: (reason?: any) => void,
+  ) {
+    this._resolve = resolve;
+    this._reject = reject;
     this._sended = true;
   }
 
