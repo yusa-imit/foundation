@@ -9,11 +9,13 @@ import { getAxiosProcessData } from './util/getAxiosProcessData';
 import { getFetchProcessData } from './util/getFetchProcessData';
 
 interface InitiatorProperty {
-  baseUrl?: string;
   url: string;
+  baseUrl?: string;
   headers?: RequestInfoHeaders;
   options?: RequestInfoOptions;
 }
+
+type InitiatorPropertyWithoutUrl = Omit<InitiatorProperty, 'url'>;
 
 interface InitiatorPropertyWithBody<T> extends InitiatorProperty {
   body?: T;
@@ -229,21 +231,41 @@ export abstract class FetchController {
 
   // Exported Requests
 
-  static get<R>(props: InitiatorProperty) {
+  static get<R>(url: string, props?: InitiatorPropertyWithoutUrl) {
     return this._internalRequest<RequestInfo<unknown>, R>(
-      this.getRequestInfo(props, 'GET'),
+      this.getRequestInfo({ url, ...props }, 'GET'),
     );
   }
-  static post<T, R>(props: InitiatorPropertyWithBody<T>) {
-    return this._internalRequest<T, R>(this.getRequestInfo<T>(props, 'POST'));
+  static post<T, R>(
+    url: string,
+    body?: T,
+    props?: InitiatorPropertyWithoutUrl,
+  ) {
+    return this._internalRequest<T, R>(
+      this.getRequestInfo<T>({ url, body, ...props }, 'POST'),
+    );
   }
-  static put<T, R>(props: InitiatorPropertyWithBody<T>) {
-    return this._internalRequest<T, R>(this.getRequestInfo<T>(props, 'PUT'));
+  static put<T, R>(url: string, body?: T, props?: InitiatorPropertyWithoutUrl) {
+    return this._internalRequest<T, R>(
+      this.getRequestInfo<T>({ url, body, ...props }, 'PUT'),
+    );
   }
-  static patch<T, R>(props: InitiatorPropertyWithBody<T>) {
-    return this._internalRequest<T, R>(this.getRequestInfo<T>(props, 'PATCH'));
+  static patch<T, R>(
+    url: string,
+    body?: T,
+    props?: InitiatorPropertyWithoutUrl,
+  ) {
+    return this._internalRequest<T, R>(
+      this.getRequestInfo<T>({ url, body, ...props }, 'PATCH'),
+    );
   }
-  static delete<T, R>(props: InitiatorPropertyWithBody<T>) {
-    return this._internalRequest<T, R>(this.getRequestInfo<T>(props, 'DELETE'));
+  static delete<T, R>(
+    url: string,
+    body?: T,
+    props?: InitiatorPropertyWithoutUrl,
+  ) {
+    return this._internalRequest<T, R>(
+      this.getRequestInfo<T>({ url, body, ...props }, 'DELETE'),
+    );
   }
 }
