@@ -1,14 +1,12 @@
 import type { AxiosInstance, AxiosResponse } from 'axios';
-import { Logger } from './logger';
 import {
   Methods,
   RequestInfo,
   RequestInfoHeaders,
   RequestInfoOptions,
-  ResponseProcessMethod,
 } from './requestInfo';
-import { getFetchProcessData } from './util/getFetchProcessData';
 import { getAxiosProcessData } from './util/getAxiosProcessData';
+import { getFetchProcessData } from './util/getFetchProcessData';
 
 interface InitiatorProperty {
   baseUrl?: string;
@@ -21,21 +19,21 @@ interface InitiatorPropertyWithBody<T> extends InitiatorProperty {
   body?: T;
 }
 
-export interface PromiseWithAbort<T = unknown, R = any> extends Promise<R> {
-  abort: (reason?: any) => RequestInfo<T>;
+export interface PromiseWithAbort<RQ = unknown, RS = any> extends Promise<RS> {
+  abort: (reason?: any) => RequestInfo<RQ>;
 }
 
-export interface FetchControllerResult<T = any, Q = any> {
-  data: T;
+export interface FetchControllerResult<RQ = any, RS = any> {
+  data: RS;
   status: number;
-  requestInfo: RequestInfo<Q>;
+  requestInfo: RequestInfo<RQ>;
 }
 
 export abstract class FetchController {
   private static _axiosInstance: AxiosInstance | undefined;
   private static _isPending = false;
   private static _baseUrl = '';
-  private static hasmap = new Map<string, Promise<any>>();
+  private static hashMap = new Map<string, PromiseWithAbort<any, any>>();
   static pendedRequests: RequestInfo<any>[] = [];
 
   static get axiosInstance() {
@@ -65,9 +63,9 @@ export abstract class FetchController {
     return Boolean(this._axiosInstance);
   }
 
-  private static async fcFetch<T = unknown, R = unknown>(
-    request: RequestInfo<T>,
-  ): Promise<FetchControllerResult<R>> {
+  private static async fcFetch<RQ = unknown, RS = unknown>(
+    request: RequestInfo<RQ>,
+  ): Promise<FetchControllerResult<RQ, RS>> {
     const res = await fetch(request.baseUrl + request.url, {
       method: request.method,
       headers: request.headers,
@@ -121,7 +119,7 @@ export abstract class FetchController {
   }
   private static async fcAxios<T, R>(
     request: RequestInfo<T>,
-  ): Promise<FetchControllerResult<R>> {
+  ): Promise<FetchControllerResult<T, R>> {
     return getAxiosProcessData(await this.axiosMethodProcess(request), request);
   }
 
@@ -139,57 +137,70 @@ export abstract class FetchController {
     }
   }
 
-  private static _internalRequest<T = unknown, R = unknown>(
-    request: RequestInfo<T>,
-  ): Promise<FetchControllerResult<R>> {
-    const check = this.hasmap.get(request.requestHash);
-    if (check) return check;
+  private static _internalRequest<RQ = unknown, RS = unknown>(
+    request: RequestInfo<RQ>,
+  ): PromiseWithAbort<RQ, FetchControllerResult<RQ, RS>> {
+    const check = this.hashMap.get(request.requestHash);
+    if (check)
+      return check as PromiseWithAbort<RQ, FetchControllerResult<RQ, RS>>;
     if (!this._isPending) {
       if (request.initiatePending) {
         this._isPending = true;
       }
-      request.send();
-      const promise = this.withAbortFunction<T, FetchControllerResult<R>>(
-        this.isUsingAxios()
-          ? this.fcAxios<T, R>(request)
-              .then((value) => {
-                request.complete();
-                return value;
-              })
-              .finally(() => {
-                this.processPendedRequests();
-                this.hasmap.delete(request.requestHash);
-              })
-          : this.fcFetch<T, R>(request)
-              .then((value) => {
-                request.complete();
-                return value;
-              })
-              .finally(() => {
-                this.processPendedRequests();
-                this.hasmap.delete(request.requestHash);
-              }),
-        () => {
+      const instantRequestPromise = new Promise<FetchControllerResult<RQ, RS>>(
+        (res, rej) => {
+          request.send(res, rej);
+          this.isUsingAxios()
+            ? this.fcAxios<RQ, RS>(request)
+                .then((value) => {
+                  request.complete();
+                  res(value);
+                })
+                .catch((e) => {
+                  rej(e);
+                })
+                .finally(() => {
+                  this.processPendedRequests();
+                  this.hashMap.delete(request.requestHash);
+                })
+            : this.fcFetch<RQ, RS>(request)
+                .then((value) => {
+                  request.complete();
+                  res(value);
+                })
+                .catch((e) => {
+                  rej(e);
+                })
+                .finally(() => {
+                  this.processPendedRequests();
+                  this.hashMap.delete(request.requestHash);
+                });
+        },
+      );
+      const promise = this.withAbortFunction<RQ, FetchControllerResult<RQ, RS>>(
+        instantRequestPromise,
+        (reason?: any) => {
           request.abortController.abort();
-          this.hasmap.delete(request.requestHash);
+          request.reject(reason);
+          this.hashMap.delete(request.requestHash);
           return request;
         },
       );
-      this.hasmap.set(request.requestHash, promise);
+      this.hashMap.set(request.requestHash, promise);
       return promise;
     }
-    const promise = this.withAbortFunction<T, FetchControllerResult<R>>(
-      new Promise<FetchControllerResult<R>>((res, rej) => {
+    const promise = this.withAbortFunction<RQ, FetchControllerResult<RQ, RS>>(
+      new Promise<FetchControllerResult<RQ, RS>>((res, rej) => {
         request.pending(res, rej);
         this.pendedRequests.push(request);
       }),
       () => {
         this.abortWithId(request.id)?.reject('Request aborted');
-        this.hasmap.delete(request.requestHash);
+        this.hashMap.delete(request.requestHash);
         return request;
       },
     );
-    this.hasmap.set(request.requestHash, promise);
+    this.hashMap.set(request.requestHash, promise);
     return promise;
   }
 
@@ -198,7 +209,7 @@ export abstract class FetchController {
     if (this.pendedRequests.length === 0) return;
     const curRequest: RequestInfo<any>[] = [];
     while (this.pendedRequests.length > 0) {
-      curRequest.push(this.pendedRequests.pop() as RequestInfo);
+      curRequest.push(this.pendedRequests.shift() as RequestInfo);
       if (curRequest[curRequest.length - 1].initiatePending) {
         break;
       }
@@ -215,6 +226,9 @@ export abstract class FetchController {
     const baseUrl = this._baseUrl;
     return new RequestInfo<T>({ baseUrl, ...props, method });
   }
+
+  // Exported Requests
+
   static get<R>(props: InitiatorProperty) {
     return this._internalRequest<RequestInfo<unknown>, R>(
       this.getRequestInfo(props, 'GET'),
