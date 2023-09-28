@@ -54,6 +54,7 @@ export abstract class FetchController {
     this._axiosInstance = instance;
     this._baseUrl = instance.defaults.baseURL || '';
   }
+
   static setBaseUrl(baseUrl: string) {
     if (this.isUsingAxios()) {
       this._axiosInstance!.defaults.baseURL = baseUrl;
@@ -83,6 +84,7 @@ export abstract class FetchController {
       requestInfo: request,
     };
   }
+
   private static async axiosMethodProcess<T, R>(
     request: RequestInfo<T>,
   ): Promise<AxiosResponse<R>> {
@@ -119,6 +121,7 @@ export abstract class FetchController {
         throw new Error('Cannot find method');
     }
   }
+
   private static async fcAxios<T, R>(
     request: RequestInfo<T>,
   ): Promise<FetchControllerResult<T, R>> {

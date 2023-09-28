@@ -43,6 +43,12 @@ export interface RequestInfoConstructorInfo<T = unknown> {
   options?: RequestInfoOptions;
 }
 
+export interface HashGenerationMethod<T = unknown> {
+  hashGenerationMethod?: (
+    constructorProps: RequestInfoConstructorInfo<T>,
+  ) => string;
+}
+
 export type RequestInfoHeaders = Record<string, string>;
 
 export class RequestInfo<T = unknown> {
@@ -57,6 +63,7 @@ export class RequestInfo<T = unknown> {
   readonly resultProcessIn: ResponseProcessMethod;
   readonly axiosOptions: AcceptableAxiosConfig | null;
   readonly requestHash: string;
+  readonly timestamp: number;
   private _isPended = false;
   private _sended = false;
   private _completed = false;
@@ -73,7 +80,8 @@ export class RequestInfo<T = unknown> {
     );
   };
 
-  constructor(info: RequestInfoConstructorInfo<T>) {
+  constructor(info: RequestInfoConstructorInfo<T> & HashGenerationMethod) {
+    this.timestamp = new Date().getTime();
     this.baseUrl = info.baseUrl;
     this.url = info.url;
     this.method = info.method;
@@ -84,7 +92,9 @@ export class RequestInfo<T = unknown> {
     this.resultProcessIn = info.options?.result || ResponseProcessMethod.JSON;
     this.axiosOptions = info.options?.axiosOptions || null;
     this.id = randomUUID();
-    this.requestHash = `${this.baseUrl}:${this.url}:${this.method}:${this.body}`;
+    this.requestHash = info.hashGenerationMethod
+      ? info.hashGenerationMethod(info)
+      : `${this.baseUrl}:${this.url}:${this.method}:${this.body}`;
   }
 
   get isPended() {
