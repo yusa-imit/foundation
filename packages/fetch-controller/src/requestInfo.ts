@@ -107,6 +107,10 @@ export class RequestInfo<T = unknown> {
     return this._completed;
   }
 
+  get aborted() {
+    return this._aborted;
+  }
+
   pending(
     resolve: (value: any | PromiseLike<any>) => void,
     reject: (reason?: any) => void,
