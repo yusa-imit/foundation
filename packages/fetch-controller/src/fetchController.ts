@@ -8,16 +8,16 @@ import {
 import { getAxiosProcessData } from './util/getAxiosProcessData';
 import { getFetchProcessData } from './util/getFetchProcessData';
 
-interface InitiatorProperty {
+export interface InitiatorProperty {
   url: string;
   baseUrl?: string;
   headers?: RequestInfoHeaders;
   options?: RequestInfoOptions;
 }
 
-type InitiatorPropertyWithoutUrl = Omit<InitiatorProperty, 'url'>;
+export type InitiatorPropertyWithoutUrl = Omit<InitiatorProperty, 'url'>;
 
-interface InitiatorPropertyWithBody<T> extends InitiatorProperty {
+export interface InitiatorPropertyWithBody<T> extends InitiatorProperty {
   body?: T;
 }
 
