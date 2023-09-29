@@ -1,12 +1,13 @@
 import type { AxiosInstance, AxiosResponse } from 'axios';
 import {
   Methods,
-  RequestInfo,
+  FCRequestInfo,
   RequestInfoHeaders,
   RequestInfoOptions,
-} from './requestInfo';
+} from './fcRequestInfo';
 import { getAxiosProcessData } from './util/getAxiosProcessData';
 import { getFetchProcessData } from './util/getFetchProcessData';
+import { FCLogLevel, FCLogger } from './fcLogger';
 
 export interface InitiatorProperty {
   url: string;
@@ -22,13 +23,13 @@ export interface InitiatorPropertyWithBody<T> extends InitiatorProperty {
 }
 
 export interface PromiseWithAbort<RQ = unknown, RS = any> extends Promise<RS> {
-  abort: (reason?: any) => RequestInfo<RQ>;
+  abort: (reason?: any) => FCRequestInfo<RQ>;
 }
 
 export interface FetchControllerResult<RQ = any, RS = any> {
   data: RS;
   status: number;
-  requestInfo: RequestInfo<RQ>;
+  requestInfo: FCRequestInfo<RQ>;
 }
 
 export abstract class FetchController {
@@ -36,7 +37,11 @@ export abstract class FetchController {
   private static _isPending = false;
   private static _baseUrl = '';
   private static hashMap = new Map<string, PromiseWithAbort<any, any>>();
-  static pendedRequests: RequestInfo<any>[] = [];
+  static pendedRequests: FCRequestInfo<any>[] = [];
+
+  static setLogLevel(level: FCLogLevel) {
+    FCLogger.setLogLevel(level);
+  }
 
   static get axiosInstance() {
     return this._axiosInstance;
@@ -67,7 +72,7 @@ export abstract class FetchController {
   }
 
   private static async fcFetch<RQ = unknown, RS = unknown>(
-    request: RequestInfo<RQ>,
+    request: FCRequestInfo<RQ>,
   ): Promise<FetchControllerResult<RQ, RS>> {
     const res = await fetch(request.baseUrl + request.url, {
       method: request.method,
@@ -86,7 +91,7 @@ export abstract class FetchController {
   }
 
   private static async axiosMethodProcess<T, R>(
-    request: RequestInfo<T>,
+    request: FCRequestInfo<T>,
   ): Promise<AxiosResponse<R>> {
     const method = request.method;
     const client = this._axiosInstance;
@@ -123,14 +128,14 @@ export abstract class FetchController {
   }
 
   private static async fcAxios<T, R>(
-    request: RequestInfo<T>,
+    request: FCRequestInfo<T>,
   ): Promise<FetchControllerResult<T, R>> {
     return getAxiosProcessData(await this.axiosMethodProcess(request), request);
   }
 
   private static withAbortFunction<T = unknown, R = unknown>(
     promise: Promise<R>,
-    abortFunction: (reason?: any) => RequestInfo<T>,
+    abortFunction: (reason?: any) => FCRequestInfo<T>,
   ): PromiseWithAbort<T, R> {
     return Object.assign(promise, { abort: abortFunction });
   }
@@ -143,11 +148,17 @@ export abstract class FetchController {
   }
 
   private static _internalRequest<RQ = unknown, RS = unknown>(
-    request: RequestInfo<RQ>,
+    request: FCRequestInfo<RQ>,
+    runInProcessPended = false,
   ): PromiseWithAbort<RQ, FetchControllerResult<RQ, RS>> {
-    const check = this.hashMap.get(request.requestHash);
-    if (check)
-      return check as PromiseWithAbort<RQ, FetchControllerResult<RQ, RS>>;
+    FCLogger.gotRequestInfoLog(request);
+    if (!runInProcessPended) {
+      const check = this.hashMap.get(request.requestHash);
+      if (check) {
+        FCLogger.gotDuplicatedRequestInfoLog(request);
+        return check as PromiseWithAbort<RQ, FetchControllerResult<RQ, RS>>;
+      }
+    }
     if (!this._isPending) {
       if (request.initiatePending) {
         this._isPending = true;
@@ -159,25 +170,33 @@ export abstract class FetchController {
             ? this.fcAxios<RQ, RS>(request)
                 .then((value) => {
                   request.complete();
+                  FCLogger.showInstantRequestLog(request);
                   res(value);
                 })
                 .catch((e) => {
+                  FCLogger.showErrorLog(request, e);
                   rej(e);
                 })
                 .finally(() => {
-                  this.processPendedRequests();
+                  this.processPendedRequests()?.then(() => {
+                    FCLogger.endPendedRequestLog();
+                  });
                   this.hashMap.delete(request.requestHash);
                 })
             : this.fcFetch<RQ, RS>(request)
                 .then((value) => {
                   request.complete();
+                  FCLogger.showInstantRequestLog(request);
                   res(value);
                 })
                 .catch((e) => {
+                  FCLogger.showErrorLog(request, e);
                   rej(e);
                 })
                 .finally(() => {
-                  this.processPendedRequests();
+                  this.processPendedRequests()?.then(() => {
+                    FCLogger.endPendedRequestLog();
+                  });
                   this.hashMap.delete(request.requestHash);
                 });
         },
@@ -206,20 +225,24 @@ export abstract class FetchController {
       },
     );
     this.hashMap.set(request.requestHash, promise);
+    FCLogger.requestHasPendedLog(request);
     return promise;
   }
 
   private static processPendedRequests() {
     this._isPending = false;
     if (this.pendedRequests.length === 0) return;
-    const curRequest: RequestInfo<any>[] = [];
+    const curRequest: FCRequestInfo<any>[] = [];
     while (this.pendedRequests.length > 0) {
-      curRequest.push(this.pendedRequests.shift() as RequestInfo);
+      curRequest.push(this.pendedRequests.shift() as FCRequestInfo);
       if (curRequest[curRequest.length - 1].initiatePending) {
         break;
       }
     }
-    Promise.all(curRequest.map((v) => this._internalRequest(v))).then(() => {
+    FCLogger.startPendedRequestLog();
+    return Promise.all(
+      curRequest.map((v) => this._internalRequest(v, true)),
+    ).finally(() => {
       this.processPendedRequests();
     });
   }
@@ -227,15 +250,15 @@ export abstract class FetchController {
   private static getRequestInfo<T>(
     props: InitiatorProperty | InitiatorPropertyWithBody<T>,
     method: Methods,
-  ): RequestInfo<T> {
+  ): FCRequestInfo<T> {
     const baseUrl = this._baseUrl;
-    return new RequestInfo<T>({ baseUrl, ...props, method });
+    return new FCRequestInfo<T>({ baseUrl, ...props, method });
   }
 
   // Exported Requests
 
   static get<R>(url: string, props?: InitiatorPropertyWithoutUrl) {
-    return this._internalRequest<RequestInfo<unknown>, R>(
+    return this._internalRequest<FCRequestInfo<unknown>, R>(
       this.getRequestInfo({ url, ...props }, 'GET'),
     );
   }
