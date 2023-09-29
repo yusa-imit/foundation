@@ -1,4 +1,4 @@
-import { ResponseProcessMethod } from '../requestInfo';
+import { ResponseProcessMethod } from '../fcRequestInfo';
 import { fetchDocument } from './fetchDocument';
 import { fetchStream } from './fetchStream';
 

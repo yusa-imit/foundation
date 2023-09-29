@@ -1,3 +1,3 @@
 export * from './util/fetchDocument';
-export * from './requestInfo';
+export * from './fcRequestInfo';
 export * from './fetchController';

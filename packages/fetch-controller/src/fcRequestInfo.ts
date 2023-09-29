@@ -51,7 +51,7 @@ export interface HashGenerationMethod<T = unknown> {
 
 export type RequestInfoHeaders = Record<string, string>;
 
-export class RequestInfo<T = unknown> {
+export class FCRequestInfo<T = unknown> {
   readonly id: string;
   readonly baseUrl: string;
   readonly url: string;

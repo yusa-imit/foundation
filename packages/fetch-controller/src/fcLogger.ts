@@ -1,4 +1,4 @@
-import { FCRequestInfo } from './requestInfo';
+import { FCRequestInfo } from './fcRequestInfo';
 
 export const FCLogLevel = {
   ALL: 4,
