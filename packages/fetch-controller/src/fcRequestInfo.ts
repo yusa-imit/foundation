@@ -1,5 +1,6 @@
 import { AxiosRequestConfig } from 'axios';
-import { randomUUID } from './util/randomUUID';
+import { getCryptoModule } from './util/getCryptoModule';
+import hash from 'object-hash';
 
 export const Methods = {
   GET: 'GET',
@@ -41,13 +42,10 @@ export interface RequestInfoConstructorInfo<T = unknown> {
   body?: T;
   headers?: RequestInfoHeaders;
   options?: RequestInfoOptions;
+  hashOptions?: RequestInfoHashGenerationOptions;
 }
 
-export interface HashGenerationMethod<T = unknown> {
-  hashGenerationMethod?: (
-    constructorProps: RequestInfoConstructorInfo<T>,
-  ) => string;
-}
+export interface RequestInfoHashGenerationOptions extends hash.NormalOption {}
 
 export type RequestInfoHeaders = Record<string, string>;
 
@@ -80,7 +78,7 @@ export class FCRequestInfo<T = unknown> {
     );
   };
 
-  constructor(info: RequestInfoConstructorInfo<T> & HashGenerationMethod) {
+  constructor(info: RequestInfoConstructorInfo<T>) {
     this.timestamp = new Date().getTime();
     this.baseUrl = info.baseUrl;
     this.url = info.url;
@@ -91,10 +89,11 @@ export class FCRequestInfo<T = unknown> {
     this.abortController = new AbortController();
     this.resultProcessIn = info.options?.result || ResponseProcessMethod.JSON;
     this.axiosOptions = info.options?.axiosOptions || null;
-    this.id = randomUUID();
-    this.requestHash = info.hashGenerationMethod
-      ? info.hashGenerationMethod(info)
-      : `${this.baseUrl}:${this.url}:${this.method}:${this.body}`;
+    this.id = getCryptoModule().randomUUID();
+    this.requestHash = hash(info, {
+      algorithm: info.hashOptions?.algorithm || 'sha256',
+      ...info.hashOptions,
+    });
   }
 
   get isPended() {

@@ -19,5 +19,8 @@
   },
   "packageManager": "pnpm@8.6.10",
   "name": "foundation",
-  "prettier": "@vercel/style-guide/prettier"
+  "prettier": "@vercel/style-guide/prettier",
+  "dependencies": {
+    "ts-jest": "^29.1.1"
+  }
 }

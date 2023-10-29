@@ -4,6 +4,7 @@ import {
   FCRequestInfo,
   RequestInfoHeaders,
   RequestInfoOptions,
+  RequestInfoHashGenerationOptions,
 } from './fcRequestInfo';
 import { getAxiosProcessData } from './util/getAxiosProcessData';
 import { getFetchProcessData } from './util/getFetchProcessData';
@@ -14,6 +15,7 @@ export interface InitiatorProperty {
   baseUrl?: string;
   headers?: RequestInfoHeaders;
   options?: RequestInfoOptions;
+  hashOptions?: RequestInfoHashGenerationOptions;
 }
 
 export type InitiatorPropertyWithoutUrl = Omit<InitiatorProperty, 'url'>;

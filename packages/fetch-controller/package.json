@@ -10,8 +10,12 @@
     "test": "echo 'Add test script here'"
   },
   "devDependencies": {
+    "@types/object-hash": "^3.0.4",
     "axios": "^1.4.0",
     "eslint-config-custom": "workspace:*",
     "tsconfig": "workspace:*"
+  },
+  "dependencies": {
+    "object-hash": "^3.0.0"
   }
 }
